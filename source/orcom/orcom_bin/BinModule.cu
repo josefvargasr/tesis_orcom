@@ -24,15 +24,11 @@
 #include "Thread.h"
 
 // CUDA
-//
 #ifdef CUDA
-	//extern char* h_reads;
 	extern uint32* arr_minim; 
 #endif
 
 extern uint32 countReads;
-//clock_t start2, end1, start_1, end_2;
-//extern clock_t end_1, start_2;
 
 struct timeval start2, end1, start_1, end_2;
 extern struct timeval end_1, start_2;
