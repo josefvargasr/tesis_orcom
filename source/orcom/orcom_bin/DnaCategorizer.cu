@@ -238,10 +238,6 @@ __global__ void d_DistributeToBins(uint32 n_reads_, uint32* d_arr_minim_, uint16
 	{
 		d_arr_minim_[tid] = d_FindMinimizer(&d_reads[d_posReads_[tid]], d_lenReads_[tid]);
 		d_arr_minim_[tid + n_reads_] = d_FindMinimizer(d_ComputeRC(&d_reads[d_posReads_[tid]], &d_readsRC[d_posReads_[tid]], d_lenReads_[tid]), d_lenReads_[tid]);
-		//if(tid < 10){
-			//printf("tid: %d, tid1: %d, tid: %d, sizeOffset2: %d, offset2: %d\n", tid, tid1, tid, sizeOffset2, offset2);
-			//printf("tid: %d, d_posReads_[%d]: %d, d_lenReads_[%d]: %d, d_arr_minim_[%d]: %d\n", tid, tid, d_posReads_[tid], tid, d_lenReads_[tid], tid, d_arr_minim_[tid]);
-		//}
 	}
 }
 
@@ -283,8 +279,6 @@ void DnaCategorizer::DistributeToBins(std::vector<DnaRecord>& records_, uint64 r
 		HANDLE_ERROR(cudaGetSymbolAddress((void**)&dd_nBinValue, d_nBinValue));
 		HANDLE_ERROR(cudaMemcpy(dd_nBinValue, &nBinValue, sizeof(uint32), cudaMemcpyHostToDevice));
 		
-		//h_reads = (char*)malloc(h_len_ * 2 * recordsCount_ *  sizeof(char));
-		//printf("realloc memorySize: %d\n", h_len_ * recordsCount_ *  sizeof(char));
 		HANDLE_ERROR(cudaMalloc((void**)&d_readsRC, h_dnaSize * sizeof(char)));
 		HANDLE_ERROR(cudaMalloc((void**)&d_reads, h_dnaSize * sizeof(char)));
 		HANDLE_ERROR(cudaMalloc((void**)&d_lenReads, recordsCount_ * sizeof(uint16)));
@@ -294,14 +288,6 @@ void DnaCategorizer::DistributeToBins(std::vector<DnaRecord>& records_, uint64 r
 		HANDLE_ERROR(cudaMalloc((void**)&d_arr_minim, 2 * recordsCount_ * sizeof(uint32)));
 	}	
 #endif
-	/*	HANDLE_ERROR(cudaMalloc((void**)&d_readsRC, h_dnaSize * sizeof(char)));
-		HANDLE_ERROR(cudaMalloc((void**)&d_reads, h_dnaSize * sizeof(char)));
-		HANDLE_ERROR(cudaMalloc((void**)&d_lenReads, recordsCount_ * sizeof(uint16)));
-		h_arr_minim = (uint32*)malloc(2 * recordsCount_ * sizeof(uint32));
-		h_posReads = (uint32*)malloc(recordsCount_ * sizeof(uint32));
-		HANDLE_ERROR(cudaMalloc((void**)&d_posReads, recordsCount_ * sizeof(uint32)));
-		HANDLE_ERROR(cudaMalloc((void**)&d_arr_minim, 2 * recordsCount_ * sizeof(uint32)));*/
-
 	
 	struct timeval end__f1;
 	gettimeofday(&end__f1, NULL);
@@ -310,8 +296,6 @@ void DnaCategorizer::DistributeToBins(std::vector<DnaRecord>& records_, uint64 r
 	if (params.tryReverseCompliment)					// Si se usa el Read en forma reversa
 	{
 	#ifdef CUDA
-		//printf("tryReverseCompliment\n");
-	
 		clock_t start_f3 = clock();
 
 		uint32 pos = 0;
@@ -352,9 +336,6 @@ void DnaCategorizer::DistributeToBins(std::vector<DnaRecord>& records_, uint64 r
 
 		const int n = (n_reads) + (N_THREADS-1);
 		const int nStreams = numStream;
-		//const int streamSize = (n)/nStreams ;
-		
-		//printf("n: %d, nStreams: %d, streamSize: %d\n", n, nStreams, streamSize);
 
 		// Crear Streams
 		cudaStream_t stream[numStream];
@@ -380,29 +361,11 @@ void DnaCategorizer::DistributeToBins(std::vector<DnaRecord>& records_, uint64 r
 				sizeOffset2 = recordsCount_/nStreams;
 			}
 
-	/*		printf("sizeOffset1: %d\n", sizeOffset1);
-			printf("sizeOffset2: %d\n", sizeOffset2);
-			printf("offset1: %d, i: %d, h_dnaSize: %d, recordsCount_: %d\n", offset1, i, h_dnaSize, recordsCount_);
-			printf("offset2: %d, i: %d, h_dnaSize/nStreams: %d, recordsCount_/nStreams: %d\n", offset2, i, h_dnaSize/nStreams, recordsCount_/nStreams);	
-			//printf("offset: %d, i: %d\n", offset2, i);
-			
-			printf("BloqueSize: %d, bSize: %d, total: %d\n", (n)/N_THREADS, bSize, bSize*N_THREADS);
-	*/
 			HANDLE_ERROR(cudaMemcpyAsync(&d_reads[offset1], &h_reads[offset1], sizeOffset1 * sizeof(char), cudaMemcpyHostToDevice, stream[i]));
 			HANDLE_ERROR(cudaMemcpyAsync(&d_lenReads[offset2], &h_lenReads[offset2], sizeOffset2 * sizeof(uint16), cudaMemcpyHostToDevice, stream[i]));
 			HANDLE_ERROR(cudaMemcpyAsync(&d_posReads[offset2], &h_posReads[offset2], sizeOffset2 * sizeof(uint32), cudaMemcpyHostToDevice, stream[i]));
 			d_DistributeToBins<<< bSize, N_THREADS, 0, stream[i]>>>(n_reads, d_arr_minim, d_lenReads, d_posReads, d_reads, d_readsRC, offset2, sizeOffset2);
-
-			//HANDLE_ERROR(cudaMemcpyAsync(&h_arr_minim[offset2], &d_arr_minim[offset2], 2 * sizeOffset2 * sizeof(uint32), cudaMemcpyDeviceToHost, stream[i]));
-		}
-
-/*		for (uint32 i = 0; i < nStreams; ++i)
-		{	
-			uint32 offset2 = i * (recordsCount_/nStreams);
-
-			d_DistributeToBins<<<(n)/N_THREADS, N_THREADS, 0, stream[i]>>>(n_reads, d_arr_minim, d_lenReads, d_posReads, d_reads, d_readsRC, offset2);
-		}
-*/	
+		}	
 		
 		for (uint32 i = 0; i < nStreams; ++i)
 			HANDLE_ERROR(cudaStreamSynchronize(stream[i]));
@@ -418,12 +381,7 @@ void DnaCategorizer::DistributeToBins(std::vector<DnaRecord>& records_, uint64 r
 				sizeOffset2 = sizeOffset2 + (recordsCount_ - (sizeOffset2 * nStreams));
 			}else{
 				sizeOffset2 = recordsCount_/nStreams;
-			}
-	
-		/*	printf("offset2: %d, i: %d, h_dnaSize: %d, recordsCount_: %d\n", offset2, i, h_dnaSize, recordsCount_);
-			printf("sizeOffset2: %d\n", sizeOffset2);
-			printf("offset2: %d, i: %d\n", offset2, i);
-		*/	
+			}	
 			HANDLE_ERROR(cudaMemcpyAsync(&h_arr_minim[offset2], &d_arr_minim[offset2], 2 * sizeOffset2 * sizeof(uint32), cudaMemcpyDeviceToHost, stream[i]));
 		}
 
@@ -448,17 +406,11 @@ void DnaCategorizer::DistributeToBins(std::vector<DnaRecord>& records_, uint64 r
 			rec.reverse = false;
 	
 			rec.ComputeRC(rcRec);
-
-			//const uint32 minimizerFwd = h_arr_minim[(i*2)];			// pares	
-			//const uint32 minimizerRev = h_arr_minim[(i*2) + 1];		// impares
 			
 			const uint32 minimizerFwd = h_arr_minim[(i)];			
 			const uint32 minimizerRev = h_arr_minim[(i) + (recordsCount_)];
 			uint32 minimizer = 0;
 			bool reverse = false;
-
-			//printf("%d.Fwd: %d\n", (i*2), h_arr_minim[(i*2)]);
-			//printf("%d.Rev: %d\n", (i*2) + 1, h_arr_minim[(i*2) + 1]);
 		
 			if (minimizerFwd <= minimizerRev)			
 			{
@@ -493,10 +445,7 @@ void DnaCategorizer::DistributeToBins(std::vector<DnaRecord>& records_, uint64 r
 		gettimeofday(&end_bin, NULL);
   		int diffa = (end_bin.tv_sec - start_bin.tv_sec);
 		diff_bin += diffa;
-		
-		//HANDLE_ERROR(cudaFree(d_arr_minim));HANDLE_ERROR(cudaFree(d_reads));
-		//free(h_reads);
-
+	
 	#else
 		
 		
@@ -512,9 +461,6 @@ void DnaCategorizer::DistributeToBins(std::vector<DnaRecord>& records_, uint64 r
 			//
 			const uint32 minimizerFwd = FindMinimizer(rec);		// Busca el minimizador del read en forma directa
 			const uint32 minimizerRev = FindMinimizer(rcRec);	// Busca el minimizador del complemento inverso del Read
-				
-			//printf("%d.Fwd: %d\n", (i*2), minimizerFwd);
-			//printf("%d.Rev: %d\n", (i*2) + 1, minimizerRev);
 
 			uint32 minimizer = 0;
 			bool reverse = false;
